@@ -4,8 +4,11 @@ import yfinance as yf
 import pandas as pd
 import requests
 import numpy as np
+import asyncio
+from telegram import Bot
+from telegram.constants import ParseMode
 
-def send_telegram_alert(symbol, current_price, signal_type):
+async def send_telegram_alert_async(symbol, current_price, signal_type):
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
     
@@ -13,7 +16,6 @@ def send_telegram_alert(symbol, current_price, signal_type):
         print("Telegram credentials not found. Cannot send alert.")
         return
 
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     if signal_type == "START":
         message = "🟢 <b>Bot Started Successfully</b> 🟢"
     elif signal_type == "ERROR":
@@ -24,18 +26,16 @@ def send_telegram_alert(symbol, current_price, signal_type):
             f"<b>Signal:</b> {signal_type}\n"
             f"<b>Current Price:</b> {current_price:.2f}"
         )
-    payload = {
-        "chat_id": chat_id,
-        "text": message,
-        "parse_mode": "HTML"
-    }
     
     try:
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
+        bot = Bot(token=bot_token)
+        await bot.send_message(chat_id=chat_id, text=message, parse_mode=ParseMode.HTML)
         print("Alert sent successfully!")
     except Exception as e:
         print(f"Failed to send alert: {e}")
+
+def send_telegram_alert(symbol, current_price, signal_type):
+    asyncio.run(send_telegram_alert_async(symbol, current_price, signal_type))
 
 def superBoilingerTrend(df, period=12, mult=2.0):
     df = df.copy()

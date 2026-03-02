@@ -14,11 +14,16 @@ def send_telegram_alert(symbol, current_price, signal_type):
         return
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    message = (
-        f"🚨 <b>Trade Alert: {symbol}</b> 🚨\n"
-        f"<b>Signal:</b> {signal_type}\n"
-        f"<b>Current Price:</b> {current_price:.2f}"
-    )
+    if signal_type == "START":
+        message = "🟢 <b>Bot Started Successfully</b> 🟢"
+    elif signal_type == "ERROR":
+        message = f"🔴 <b>Error Executing Bot:</b> 🔴\n<code>{current_price}</code>" # In case of error, we'll pass error msg in current_price
+    else:
+        message = (
+            f"🚨 <b>Trade Alert: {symbol}</b> 🚨\n"
+            f"<b>Signal:</b> {signal_type}\n"
+            f"<b>Current Price:</b> {current_price:.2f}"
+        )
     payload = {
         "chat_id": chat_id,
         "text": message,
@@ -82,6 +87,9 @@ def superBoilingerTrend(df, period=12, mult=2.0):
 def main():
     symbol = "^NSEI"
     try:
+        print("Bot started. Notifying Telegram...")
+        send_telegram_alert(symbol=symbol, current_price=0, signal_type="START")
+        
         # Fetch 5-minute interval data for the last 5 days 
         # (to ensure we cover previous 2 trading days + current day, accounting for weekends)
         ticker = yf.Ticker(symbol)
@@ -121,7 +129,9 @@ def main():
             print("Strategy not triggered. No alert sent.")
             
     except Exception as e:
-        print(f"Error executing bot: {e}")
+        error_msg = str(e)
+        print(f"Error executing bot: {error_msg}")
+        send_telegram_alert(symbol=symbol, current_price=error_msg, signal_type="ERROR")
         sys.exit(1)
 
 if __name__ == "__main__":

@@ -2,10 +2,9 @@ name: Trading Bot
 
 on:
   schedule:
-    # Run every 5 minutes on weekdays between 03:45 UTC and 10:00 UTC (9:15 AM to 3:30 PM IST)
-    - cron: '45,50,55 3 * * 1-5'
-    - cron: '*/5 4-9 * * 1-5'
-    - cron: '0 10 * * 1-5'
+    # Starts once at 03:45 UTC (9:15 AM IST) on weekdays. 
+    # The Python script will now loop continuously every 5 minutes until market close.
+    - cron: '45 3 * * 1-5'
   workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
 
 jobs:

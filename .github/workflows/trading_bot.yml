@@ -30,6 +30,6 @@ jobs:
       - name: Run trading bot
         env:
           TELEGRAM_BOT_TOKEN: "8792428947:AAFCJ2AP1y49AxHdb7vmGHQs1oRz8g7J6zo"
-          TELEGRAM_CHAT_ID: "8792428947"
+          TELEGRAM_CHAT_ID: "1112002477"
         run: |
           python main.py

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot Vision</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">▲</span>
+                    <span class="logo-text">Bot<span class="highlight">Vision</span></span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active">
+                    <span class="nav-icon">📊</span> Overview
+                </a>
+                <a href="#" class="nav-item">
+                    <span class="nav-icon">⚙️</span> Settings
+                </a>
+            </nav>
+            <div class="status-indicator">
+                <div class="pulse-dot"></div>
+                <span>Live Feed Active</span>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <h1>Trading Dashboard</h1>
+                <div class="topbar-actions">
+                    <button class="btn btn-outline" id="refresh-btn">
+                        <span class="icon">🔄</span> Refresh Data
+                    </button>
+                    <div class="profile-circle">U</div>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+                <!-- KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <h3 class="kpi-title">Current Symbol</h3>
+                        <p class="kpi-value" id="kpi-symbol">--</p>
+                    </div>
+                    <div class="kpi-card">
+                        <h3 class="kpi-title">Latest Price</h3>
+                        <p class="kpi-value" id="kpi-price">--</p>
+                    </div>
+                    <div class="kpi-card">
+                        <h3 class="kpi-title">Super Bollinger Trend (SBT)</h3>
+                        <p class="kpi-value" id="kpi-sbt">--</p>
+                    </div>
+                    <div class="kpi-card highlight-card">
+                        <h3 class="kpi-title">Active Signal</h3>
+                        <p class="kpi-value" id="kpi-signal">--</p>
+                    </div>
+                </div>
+
+                <!-- Chart Container -->
+                <div class="chart-section glass-panel">
+                    <div class="chart-header">
+                        <h2>Strategy Performance</h2>
+                        <div class="legend">
+                            <span class="legend-item"><span class="color-box trend-line"></span>SBT Line</span>
+                            <span class="legend-item"><span class="color-box up-band"></span>BB Up</span>
+                            <span class="legend-item"><span class="color-box dn-band"></span>BB Down</span>
+                        </div>
+                    </div>
+                    <div id="chart" class="chart-container">
+                        <div class="loader" id="chart-loader">
+                            <div class="spinner"></div>
+                            <p>Connecting to Core Logic...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- App Logic -->
+    <script src="app.js"></script>
+</body>
+
+</html>

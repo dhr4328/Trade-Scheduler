@@ -3,3 +3,5 @@ yfinance
 requests
 numpy
 python-telegram-bot
+flask
+flask-cors

@@ -8,16 +8,37 @@ import pandas as pd
 import requests
 import numpy as np
 import asyncio
-def send_telegram_alert(symbol, current_price, signal_type):
-    bot_token = "8792428947:AAFCJ2AP1y49AxHdb7vmGHQs1oRz8g7J6zo" # Hardcoded value
-    chat_id = "1112002477" # Hardcoded value
-    
-    if not bot_token or not chat_id:
-        print("Telegram credentials not found. Cannot send alert.")
-        return
+BOT_TOKEN = "8792428947:AAFCJ2AP1y49AxHdb7vmGHQs1oRz8g7J6zo" # Hardcoded value
+CHAT_ID = "1112002477" # Hardcoded value
 
+latest_status = {
+    "symbol": "^NSEI",
+    "time": "N/A",
+    "price": 0.0,
+    "signal": "N/A",
+    "sbt": 0.0
+}
+last_update_id = None
+
+def send_telegram_message(text):
+    if not BOT_TOKEN or not CHAT_ID:
+        print("Telegram credentials not found. Cannot send message.")
+        return
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"Failed to send message: {e}")
+
+def send_telegram_alert(symbol, current_price, signal_type):
     if signal_type == "START":
-        message = "🟢 <b>Bot Started Successfully. Monitoring active.</b> 🟢"
+        message = "🟢 <b>Bot Started Successfully. Monitoring active.</b> 🟢\nSend /status to check current bot status."
     elif signal_type == "STOP":
         message = "🛑 <b>Market Closed. Bot Stopped.</b> 🛑"
     elif signal_type == "ERROR":
@@ -28,19 +49,54 @@ def send_telegram_alert(symbol, current_price, signal_type):
             f"<b>Signal:</b> {signal_type}\n"
             f"<b>Current Price:</b> {current_price:.2f}"
         )
-    
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": message,
-        "parse_mode": "HTML"
-    }
+    send_telegram_message(message)
+    print(f"Alert sent: {signal_type}")
+
+def check_telegram_commands(timeout=10):
+    global last_update_id
+    if not BOT_TOKEN or not CHAT_ID:
+        return
+        
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
+    params = {"timeout": timeout, "allowed_updates": ["message"]}
+    if last_update_id:
+        params["offset"] = last_update_id
+        
     try:
-        response = requests.post(url, json=payload, timeout=10)
+        response = requests.get(url, params=params, timeout=timeout + 5)
         response.raise_for_status()
-        print("Alert sent successfully!")
+        data = response.json()
+        
+        if data.get("ok"):
+            for result in data.get("result", []):
+                update_id = result.get("update_id")
+                last_update_id = update_id + 1
+                
+                message = result.get("message", {})
+                text = message.get("text", "")
+                chat = message.get("chat", {})
+                sender_chat_id = str(chat.get("id", ""))
+                msg_date = message.get("date", 0)
+                
+                if sender_chat_id == CHAT_ID:  # only respond to authorized chat
+                    # Process commands if they are not older than 5 minutes
+                    if text.startswith("/status") and time.time() - msg_date < 300:
+                        send_status_message()
+    except requests.exceptions.RequestException:
+        pass  # Ignore timeout errors or connection errors during polling
     except Exception as e:
-        print(f"Failed to send alert: {e}")
+        print(f"Error checking Telegram commands: {e}")
+
+def send_status_message():
+    message = (
+        f"📊 <b>Bot Status Report</b> 📊\n"
+        f"<b>Symbol:</b> {latest_status['symbol']}\n"
+        f"<b>Last Fetch Time:</b> {latest_status['time']}\n"
+        f"<b>Last Price:</b> {latest_status['price']:.2f}\n"
+        f"<b>SBT Value:</b> {latest_status['sbt']:.2f}\n"
+        f"<b>Last Signal:</b> {latest_status['signal']}"
+    )
+    send_telegram_message(message)
 
 def superBoilingerTrend(df, period=12, mult=2.0):
     df = df.copy()
@@ -88,7 +144,38 @@ def superBoilingerTrend(df, period=12, mult=2.0):
 
     return df
 
+def save_dashboard_data(symbol, df, current_price, last_signal):
+    import json
+    try:
+        dashboard_data = []
+        for idx, row in df.iterrows():
+            ts = int(idx.timestamp())
+            dashboard_data.append({
+                "time": ts + 19800,
+                "open": None if pd.isna(row['Open']) else float(row['Open']),
+                "high": None if pd.isna(row['High']) else float(row['High']),
+                "low": None if pd.isna(row['Low']) else float(row['Low']),
+                "close": None if pd.isna(row['Close']) else float(row['Close']),
+                "sbt": None if pd.isna(row['SBT']) else float(row['SBT']),
+                "signal": row['Signal'] if not pd.isna(row['Signal']) else None,
+                "bb_up": None if pd.isna(row['bb_up']) else float(row['bb_up']),
+                "bb_dn": None if pd.isna(row['bb_dn']) else float(row['bb_dn']),
+            })
+            
+        with open('bot_state.json', 'w') as f:
+            json.dump({
+                "symbol": symbol,
+                "latest_price": current_price,
+                "latest_sbt": dashboard_data[-1]["sbt"] if dashboard_data else None,
+                "latest_signal": last_signal if not pd.isna(last_signal) else "NONE",
+                "chart_data": dashboard_data
+            }, f)
+        print("Updated dashboard state successfully.")
+    except Exception as e:
+        print(f"Error saving dashboard data: {e}")
+
 def fetch_and_analyze(symbol):
+    global latest_status
     # Fetch 5-minute interval data for the last 5 days 
     ticker = yf.Ticker(symbol)
     df = ticker.history(period="5d", interval="5m")
@@ -115,7 +202,19 @@ def fetch_and_analyze(symbol):
     current_price = float(df["Close"].iloc[-1])
     latest_time = df.index[-1].strftime('%H:%M')
     
+    # Update global latest_status for the /status command
+    latest_status.update({
+        "symbol": symbol,
+        "time": latest_time,
+        "price": current_price,
+        "signal": last_signal if not pd.isna(last_signal) else "NONE",
+        "sbt": float(df["SBT"].iloc[-1])
+    })
+    
     print(f"[{latest_time}] Last closed candle price: {current_price:.2f} | Expected Signal: {last_signal}")
+    
+    # Save latest state for the dashboard
+    save_dashboard_data(symbol, df, current_price, last_signal)
     
     if last_signal in ["LONG", "SHORT"]:
         print(f"Strategy triggered ({last_signal})! Sending alert...")
@@ -163,10 +262,16 @@ def main():
             except Exception as e:
                 print(f"Error during fetch/analysis: {e}")
                 
-            # Sleep until the next 5-minute mark
+            # Wait until the next 5-minute mark, while polling for commands
             sleep_sec = get_next_sleep_time()
-            print(f"Sleeping for {sleep_sec} seconds until next check...")
-            time.sleep(sleep_sec)
+            print(f"Waiting for {sleep_sec} seconds until next check, polling for commands...")
+            end_time = time.time() + sleep_sec
+            while time.time() < end_time:
+                time_left = end_time - time.time()
+                if time_left <= 0:
+                    break
+                poll_timeout = max(1, min(10, int(time_left)))
+                check_telegram_commands(timeout=poll_timeout)
             
     except Exception as e:
         error_msg = str(e)

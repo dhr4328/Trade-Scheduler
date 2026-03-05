@@ -9,8 +9,8 @@ from telegram import Bot
 from telegram.constants import ParseMode
 
 async def send_telegram_alert_async(symbol, current_price, signal_type):
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    bot_token = "8792428947:AAFCJ2AP1y49AxHdb7vmGHQs1oRz8g7J6zo" # Hardcoded value
+    chat_id = "8792428947" # Hardcoded value
     
     if not bot_token or not chat_id:
         print("Telegram credentials not found. Cannot send alert.")

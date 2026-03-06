@@ -19,6 +19,7 @@ latest_status = {
     "sbt": 0.0
 }
 last_update_id = None
+last_notified_timestamp = None
 
 def send_telegram_message(text):
     if not BOT_TOKEN or not CHAT_ID:
@@ -175,7 +176,7 @@ def save_dashboard_data(symbol, df, current_price, last_signal):
         print(f"Error saving dashboard data: {e}")
 
 def fetch_and_analyze(symbol):
-    global latest_status
+    global latest_status, last_notified_timestamp
     # Fetch 5-minute interval data for the last 5 days 
     ticker = yf.Ticker(symbol)
     df = ticker.history(period="5d", interval="5m")
@@ -198,31 +199,43 @@ def fetch_and_analyze(symbol):
 
     df = superBoilingerTrend(df)
     
-    last_signal = df["Signal"].iloc[-1]
+    # Get current state from the very last row
     current_price = float(df["Close"].iloc[-1])
     latest_time = df.index[-1].strftime('%H:%M')
+    last_row_signal = df["Signal"].iloc[-1]
+    
+    # Find the last active signal for status display
+    active_signal = df["Signal"].dropna().iloc[-1] if not df["Signal"].dropna().empty else "NONE"
     
     # Update global latest_status for the /status command
     latest_status.update({
         "symbol": symbol,
         "time": latest_time,
         "price": current_price,
-        "signal": last_signal if not pd.isna(last_signal) else "NONE",
+        "signal": active_signal,
         "sbt": float(df["SBT"].iloc[-1])
     })
     
-    print(f"[{latest_time}] Last closed candle price: {current_price:.2f} | Expected Signal: {last_signal}")
+    print(f"[{latest_time}] Last candle price: {current_price:.2f} | Last Active Signal: {active_signal}")
     
     # Save latest state for the dashboard
-    save_dashboard_data(symbol, df, current_price, last_signal)
+    save_dashboard_data(symbol, df, current_price, last_row_signal)
     
-    if last_signal in ["LONG", "SHORT"]:
-        print(f"Strategy triggered ({last_signal})! Sending alert...")
-        send_telegram_alert(
-            symbol=symbol, 
-            current_price=current_price, 
-            signal_type=f"Super Bollinger Trend: {last_signal}"
-        )
+    if last_notified_timestamp is None:
+        # Initialize to avoid firing old alerts, but allow catching recently missed ones
+        last_notified_timestamp = df.index[-3] if len(df) >= 3 else df.index[0]
+        
+    recent_df = df.tail(3)
+    for idx, row in recent_df.iterrows():
+        sig = row['Signal']
+        if not pd.isna(sig) and idx > last_notified_timestamp:
+            print(f"Strategy triggered ({sig}) at {idx.strftime('%H:%M')}! Sending alert...")
+            send_telegram_alert(
+                symbol=symbol, 
+                current_price=float(row['Close']), 
+                signal_type=f"Super Bollinger Trend: {sig}"
+            )
+            last_notified_timestamp = idx
 
 def get_next_sleep_time():
     """

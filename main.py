@@ -9,6 +9,7 @@ import requests
 import numpy as np
 import asyncio
 import argparse
+
 BOT_TOKEN = "8792428947:AAFCJ2AP1y49AxHdb7vmGHQs1oRz8g7J6zo" # Hardcoded value
 CHAT_ID = "1112002477" # Hardcoded value
 
@@ -54,9 +55,10 @@ def send_telegram_alert(symbol, current_price, signal_type):
     send_telegram_message(message)
     print(f"Alert sent: {signal_type}")
 
-def check_telegram_commands(timeout=10):
+def check_telegram_commands(timeout=10, is_primary=False):
     global last_update_id
-    if not BOT_TOKEN or not CHAT_ID:
+    if not is_primary or not BOT_TOKEN or not CHAT_ID:
+        time.sleep(timeout)
         return
         
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
@@ -90,14 +92,42 @@ def check_telegram_commands(timeout=10):
         print(f"Error checking Telegram commands: {e}")
 
 def send_status_message():
-    message = (
-        f"📊 <b>Bot Status Report</b> 📊\n"
-        f"<b>Symbol:</b> {latest_status['symbol']}\n"
-        f"<b>Last Fetch Time:</b> {latest_status['time']}\n"
-        f"<b>Last Price:</b> {latest_status['price']:.2f}\n"
-        f"<b>SBT Value:</b> {latest_status['sbt']:.2f}\n"
-        f"<b>Last Signal:</b> {latest_status['signal']}"
-    )
+    symbols = ["^NSEI", "^NSEBANK", "^BSESN"]
+    statuses = []
+    
+    for sym in symbols:
+        try:
+            ticker = yf.Ticker(sym)
+            df = ticker.history(period="5d", interval="5m")
+            if df.empty:
+                statuses.append(f"<b>{sym}</b>\nNo data available.")
+                continue
+                
+            if df.index.tz is None:
+                df.index = df.index.tz_localize('UTC').tz_convert('Asia/Kolkata')
+            else:
+                df.index = df.index.tz_convert('Asia/Kolkata')
+                
+            unique_dates = pd.Series(df.index.date).unique()
+            if len(unique_dates) > 3:
+                start_date = unique_dates[-3]
+                df = df[df.index.date >= start_date]
+                
+            df = superBoilingerTrend(df)
+            current_price = float(df["Close"].iloc[-1])
+            latest_time = df.index[-1].strftime('%H:%M')
+            active_signal = df["Signal"].dropna().iloc[-1] if not df["Signal"].dropna().empty else "NONE"
+            sbt_val = float(df["SBT"].iloc[-1])
+            
+            statuses.append(
+                f"<b>{sym}</b>\n"
+                f"Time: {latest_time} | Price: {current_price:.2f}\n"
+                f"SBT: {sbt_val:.2f} | Signal: {active_signal}"
+            )
+        except Exception as e:
+            statuses.append(f"<b>{sym}</b>\nError fetching status.")
+            
+    message = "📊 <b>Multi-Bot Status Report</b> 📊\n\n" + "\n\n".join(statuses)
     send_telegram_message(message)
 
 def superBoilingerTrend(df, period=12, mult=2.0):
@@ -286,12 +316,13 @@ def main():
             sleep_sec = get_next_sleep_time(delay_seconds)
             print(f"Waiting for {sleep_sec} seconds until next check, polling for commands...")
             end_time = time.time() + sleep_sec
+            is_primary = (symbol == "^NSEI")
             while time.time() < end_time:
                 time_left = end_time - time.time()
                 if time_left <= 0:
                     break
                 poll_timeout = max(1, min(10, int(time_left)))
-                check_telegram_commands(timeout=poll_timeout)
+                check_telegram_commands(timeout=poll_timeout, is_primary=is_primary)
             
     except Exception as e:
         error_msg = str(e)

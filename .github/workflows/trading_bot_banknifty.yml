@@ -1,4 +1,4 @@
-name: Trading Bot
+name: Trading Bot BANKNIFTY
 
 on:
   schedule:
@@ -31,4 +31,4 @@ jobs:
           TELEGRAM_BOT_TOKEN: "8792428947:AAFCJ2AP1y49AxHdb7vmGHQs1oRz8g7J6zo"
           TELEGRAM_CHAT_ID: "1112002477"
         run: |
-          python main.py --symbol "^NSEI" --delay 5
+          python main.py --symbol "^NSEBANK" --delay 15

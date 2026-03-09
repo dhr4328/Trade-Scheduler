@@ -8,6 +8,7 @@ import pandas as pd
 import requests
 import numpy as np
 import asyncio
+import argparse
 BOT_TOKEN = "8792428947:AAFCJ2AP1y49AxHdb7vmGHQs1oRz8g7J6zo" # Hardcoded value
 CHAT_ID = "1112002477" # Hardcoded value
 
@@ -163,7 +164,7 @@ def save_dashboard_data(symbol, df, current_price, last_signal):
                 "bb_dn": None if pd.isna(row['bb_dn']) else float(row['bb_dn']),
             })
             
-        with open('bot_state.json', 'w') as f:
+        with open(f'bot_state_{symbol.replace("^", "")}.json', 'w') as f:
             json.dump({
                 "symbol": symbol,
                 "latest_price": current_price,
@@ -237,18 +238,24 @@ def fetch_and_analyze(symbol):
             )
             last_notified_timestamp = idx
 
-def get_next_sleep_time():
+def get_next_sleep_time(delay_seconds=5):
     """
     Calculate seconds to sleep until the next 5-minute interval (e.g., :00, :05, :10).
-    Adds a small buffer of 5 seconds to ensure we fetch slightly after the candle closes.
+    Adds a configurable buffer in seconds to ensure we fetch slightly after the candle closes.
     """
     now = datetime.now()
     minutes_to_next = 5 - (now.minute % 5)
-    seconds_to_sleep = (minutes_to_next * 60) - now.second + 5
+    seconds_to_sleep = (minutes_to_next * 60) - now.second + delay_seconds
     return seconds_to_sleep
 
 def main():
-    symbol = "^NSEI"
+    parser = argparse.ArgumentParser(description="Trading Bot")
+    parser.add_argument('--symbol', type=str, default='^NSEI', help='Ticker symbol')
+    parser.add_argument('--delay', type=int, default=5, help='Buffer delay for fetching data in seconds')
+    args = parser.parse_args()
+    
+    symbol = args.symbol
+    delay_seconds = args.delay
     try:
         print("Bot started. Notifying Telegram...")
         send_telegram_alert(symbol=symbol, current_price=0, signal_type="START")
@@ -276,7 +283,7 @@ def main():
                 print(f"Error during fetch/analysis: {e}")
                 
             # Wait until the next 5-minute mark, while polling for commands
-            sleep_sec = get_next_sleep_time()
+            sleep_sec = get_next_sleep_time(delay_seconds)
             print(f"Waiting for {sleep_sec} seconds until next check, polling for commands...")
             end_time = time.time() + sleep_sec
             while time.time() < end_time:

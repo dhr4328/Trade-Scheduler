@@ -25,13 +25,20 @@ def static_proxy(path):
 
 @app.route('/api/bot-data')
 def get_bot_data():
+    from flask import request
     try:
         import json
         import os
-        if not os.path.exists('bot_state.json'):
-            return jsonify({"error": "No bot data available. Please make sure main.py is running and fetching data."}), 400
+        symbol = request.args.get('symbol', 'NSEI')
+        file_path = f'bot_state_{symbol}.json'
+        # Fallback to the old format if explicitly requested or testing locally
+        if not os.path.exists(file_path):
+            if os.path.exists('bot_state.json') and symbol == 'NSEI':
+                file_path = 'bot_state.json'
+            else:
+                return jsonify({"error": f"No bot data available for {symbol}. Please make sure main.py is running and fetching data."}), 400
             
-        with open('bot_state.json', 'r') as f:
+        with open(file_path, 'r') as f:
             data = json.load(f)
             return jsonify(data)
     except Exception as e:

@@ -59,7 +59,7 @@ def check_telegram_commands(timeout=10, is_primary=False):
     global last_update_id
     if not is_primary or not BOT_TOKEN or not CHAT_ID:
         time.sleep(timeout)
-        return
+        return None
         
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
     params = {"timeout": timeout, "allowed_updates": ["message"]}
@@ -84,12 +84,17 @@ def check_telegram_commands(timeout=10, is_primary=False):
                 
                 if sender_chat_id == CHAT_ID:  # only respond to authorized chat
                     # Process commands if they are not older than 5 minutes
-                    if text.startswith("/status") and time.time() - msg_date < 300:
-                        send_status_message()
+                    if time.time() - msg_date < 300:
+                        if text.startswith("/status"):
+                            send_status_message()
+                        elif text.startswith("/run"):
+                            return "run"
     except requests.exceptions.RequestException:
         pass  # Ignore timeout errors or connection errors during polling
     except Exception as e:
         print(f"Error checking Telegram commands: {e}")
+        
+    return None
 
 def send_status_message():
     symbols = ["^NSEI", "^NSEBANK", "^BSESN"]
@@ -322,7 +327,11 @@ def main():
                 if time_left <= 0:
                     break
                 poll_timeout = max(1, min(10, int(time_left)))
-                check_telegram_commands(timeout=poll_timeout, is_primary=is_primary)
+                cmd = check_telegram_commands(timeout=poll_timeout, is_primary=is_primary)
+                if cmd == "run":
+                    print("Received /run command. Forcing immediate check...")
+                    send_telegram_message("⚡ <b>Manual run triggered!</b> Forcing immediate evaluation...")
+                    break
             
     except Exception as e:
         error_msg = str(e)

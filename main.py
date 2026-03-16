@@ -296,21 +296,35 @@ def main():
         send_telegram_alert(symbol=symbol, current_price=0, signal_type="START")
         
         ist = ZoneInfo('Asia/Kolkata')
+        run_full_day_weekdays = (symbol == "GC=F")
         
         while True:
             # Check current time in IST
             now_ist = datetime.now(ist)
             
-            # Stop condition: if it's past 3:35 PM IST (15:35)
-            # 3:30 is market close, one extra check at 3:35 is fine to capture last 3:30 candle.
-            if now_ist.hour > 15 or (now_ist.hour == 15 and now_ist.minute > 35):
-                print("Market closed. Stopping bot loop.")
-                send_telegram_alert(symbol=symbol, current_price=0, signal_type="STOP")
-                break
+            # Stop condition:
+            # - For Gold (GC=F): run full day on weekdays, stop on weekends (IST).
+            # - For NSE symbols: stop after market close (3:35 PM IST).
+            if run_full_day_weekdays:
+                if now_ist.weekday() >= 5:  # 5=Saturday, 6=Sunday
+                    print("Weekend detected (IST). Stopping bot loop.")
+                    send_telegram_alert(symbol=symbol, current_price=0, signal_type="STOP")
+                    break
+                # Auto-stop at 9:00 PM IST
+                if now_ist.hour >= 21:
+                    print("Reached 9:00 PM IST. Stopping bot loop.")
+                    send_telegram_alert(symbol=symbol, current_price=0, signal_type="STOP")
+                    break
+            else:
+                # 3:30 is market close, one extra check at 3:35 is fine to capture last 3:30 candle.
+                if now_ist.hour > 15 or (now_ist.hour == 15 and now_ist.minute > 35):
+                    print("Market closed. Stopping bot loop.")
+                    send_telegram_alert(symbol=symbol, current_price=0, signal_type="STOP")
+                    break
                 
             try:
                 # Only analyze if we are inside market hours
-                if now_ist.hour > 9 or (now_ist.hour == 9 and now_ist.minute >= 15):
+                if run_full_day_weekdays or (now_ist.hour > 9 or (now_ist.hour == 9 and now_ist.minute >= 15)):
                     fetch_and_analyze(symbol)
                 else:
                     print("Market hasn't opened yet (pre 9:15 AM). Just waiting...")

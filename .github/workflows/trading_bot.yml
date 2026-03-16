@@ -28,7 +28,7 @@ jobs:
           
       - name: Run trading bot
         env:
-          TELEGRAM_BOT_TOKEN: "8792428947:AAFCJ2AP1y49AxHdb7vmGHQs1oRz8g7J6zo"
-          TELEGRAM_CHAT_ID: "1112002477"
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python main.py --symbol "^NSEI" --delay 5

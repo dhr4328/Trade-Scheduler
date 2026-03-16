@@ -10,8 +10,8 @@ import numpy as np
 import asyncio
 import argparse
 
-BOT_TOKEN = "8792428947:AAFCJ2AP1y49AxHdb7vmGHQs1oRz8g7J6zo" # Hardcoded value
-CHAT_ID = "1112002477" # Hardcoded value
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 latest_status = {
     "symbol": "^NSEI",

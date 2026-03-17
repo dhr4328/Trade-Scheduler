@@ -297,6 +297,8 @@ def main():
         
         ist = ZoneInfo('Asia/Kolkata')
         run_full_day_weekdays = (symbol == "GC=F")
+        gold_max_runtime_seconds = 6 * 60 * 60 if run_full_day_weekdays else None
+        bot_start_time = time.time()
         
         while True:
             # Check current time in IST
@@ -310,9 +312,9 @@ def main():
                     print("Weekend detected (IST). Stopping bot loop.")
                     send_telegram_alert(symbol=symbol, current_price=0, signal_type="STOP")
                     break
-                # Auto-stop at 9:00 PM IST
-                if now_ist.hour >= 21:
-                    print("Reached 9:00 PM IST. Stopping bot loop.")
+                # Auto-stop after max runtime (to match GitHub Actions limits)
+                if gold_max_runtime_seconds is not None and (time.time() - bot_start_time) >= gold_max_runtime_seconds:
+                    print("Reached 6 hours runtime. Stopping bot loop.")
                     send_telegram_alert(symbol=symbol, current_price=0, signal_type="STOP")
                     break
             else:
